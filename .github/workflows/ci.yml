@@ -1,0 +1,54 @@
+name: Cross-KVM CI/CD Pipeline
+
+on:
+  push:
+    branches: [ master, main ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  quality-and-tests:
+    name: Build & Verify (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install Linux Dependencies (Ubuntu only)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxtst-dev libxdo-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+
+      - name: Check Formatting
+        run: cargo fmt --check
+
+      - name: Lint with Clippy
+        run: cargo clippy -- -D warnings
+
+      - name: Run Test Suite
+        run: cargo test --verbose
+
+      - name: Build Artifacts (Release)
+        run: cargo build --release --verbose
+
+      - name: Upload Binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross_kvm-${{ matrix.os }}
+          path: |
+            target/release/cross_kvm
+            target/release/cross_kvm.exe
+          if-no-files-found: ignore
