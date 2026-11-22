@@ -2,6 +2,7 @@ pub mod clipboard;
 pub mod crypto;
 pub mod file_engine;
 pub mod protocol;
+pub mod updater;
 
 use clap::Parser;
 use std::sync::Arc;
@@ -12,7 +13,7 @@ use tracing::{error, info};
 #[derive(Parser, Debug)]
 #[command(
     name = "cross_kvm",
-    version = "0.1.0",
+    version = "1.0.0",
     about = "Fast & Secure LAN KVM for macOS and Windows"
 )]
 struct Args {
@@ -48,6 +49,15 @@ async fn main() -> anyhow::Result<()> {
         "🔒 Kênh mã hóa PSK kích hoạt thành công (PIN: {})",
         args.pin
     );
+
+    // Kích hoạt tác vụ kiểm tra cập nhật GitHub
+    let updater = updater::AutoUpdater::new();
+    if let Ok(Some(release)) = updater.check_for_updates().await {
+        info!(
+            "📢 Bạn có thể cập nhật phiên bản mới bằng cách tải từ: {}",
+            release.html_url
+        );
+    }
 
     if args.mode == "server" {
         let listener = TcpListener::bind(&args.bind).await?;
